@@ -1,0 +1,6 @@
+# per-user files written at runtime
+settings.json
+settings.*.json
+scan_report.txt
+monitor_log.txt
+*.bak
