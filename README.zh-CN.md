@@ -10,7 +10,7 @@
 - 拾取通过游戏自身的交互逻辑完成，并按正常方式记录到存档中。
 - 拾取键可绑定到键盘（支持 Alt、Shift 组合键）、鼠标（含侧键）或手柄（支持组合键）。
 - 游戏暂停或菜单占用输入时不会触发。
-- 提供切换拾取范围和开关装备过滤的快捷键，每次更改都会在屏幕上显示简短提示，无需设置菜单即可调整。
+- 提供切换拾取范围和开关装备过滤的快捷键，每次更改都会在屏幕上显示简短提示（中文或英文，默认跟随游戏语言），无需设置菜单即可调整。
 - 以下物品不会被远程拾取：
   - 已拾取或当前处于隐藏状态的物品；
   - 任务物品（物品 ID 以 `K_` 或 `I_` 开头）；
@@ -52,7 +52,7 @@
 首次更改设置后，mod 文件夹中会生成 `settings.json`。未安装模组配置菜单时，也可在游戏未运行时手动创建或编辑该文件：
 
 ```json
-{"equipGamepad":"","equipKey":"L","onePerPress":true,"pickupGamepad":"","pickupKey":"O","radiusM":50,"rangeGamepad":"","rangeKey":"P","showToast":true,"skipEquipment":true,"skipHidden":true}
+{"equipGamepad":"","equipKey":"L","onePerPress":true,"pickupGamepad":"","pickupKey":"O","radiusM":50,"rangeGamepad":"","rangeKey":"P","showToast":true,"skipEquipment":true,"skipHidden":true,"toastLanguage":"auto"}
 ```
 
 | 键 | 说明 | 默认值 |
@@ -66,6 +66,7 @@
 | `rangeKey` / `rangeGamepad` | 切换拾取范围的键盘键 / 手柄绑定（手柄支持组合键）。 | `P` / `""` |
 | `equipKey` / `equipGamepad` | 开关"跳过装备"的键盘键 / 手柄绑定（手柄支持组合键）。 | `L` / `""` |
 | `showToast` | 通过快捷键更改设置时显示屏幕提示。 | `true` |
+| `toastLanguage` | 屏幕提示的语言：`auto`（游戏语言为中文时显示中文，否则显示英文）、`en` 或 `zh-Hans`。 | `auto` |
 
 手柄背键：虚幻引擎没有为背键定义专用的键名。若游戏能够识别背键，可直接绑定；否则，请先在 Steam 输入中将背键映射为一个未使用的手柄按键，再绑定该按键。
 
@@ -76,6 +77,7 @@
 - `skip <物体> ... : <原因>`：该物品已被跳过，后附原因。若某种材料被判定为 `equipment / unknown item <ID>`，请提交 issue 并附上该 ID。
 - `PICKED` / `FAILED`：拾取结果。若随后出现 `LATE`，表示拾取在延迟后完成。
 - `toast: ...`：快捷键更改了设置。若随后出现 `on-screen message unavailable`，表示屏幕提示未能显示，但设置已经生效；连续失败三次后，本次游戏中将不再显示屏幕提示。
+- `game culture: ...`：`toastLanguage` 为 `auto` 时检测到的游戏语言。若检测失败，提示将以英文显示，此时请手动设置 `toastLanguage`。
 - `struct ...: id fields [...]`：读取拾取物数据中物品 ID 时的诊断信息，提交 issue 时请一并附上。
 
 ## 已知限制

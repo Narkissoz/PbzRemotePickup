@@ -10,7 +10,7 @@ A UE4SS Lua mod for *Phantom Blade Zero* that collects nearby items remotely. Ea
 - Pickups are carried out through the game's own interaction logic and are recorded in the save file as usual.
 - The pickup key can be bound to the keyboard (Alt and Shift combinations are supported), the mouse (including side buttons) or a gamepad (button chords are supported).
 - Inactive while the game is paused or a menu has input focus.
-- Hotkeys cycle the pickup range and toggle the equipment filter. Each change is confirmed by a brief on-screen message, so no settings menu is required.
+- Hotkeys cycle the pickup range and toggle the equipment filter. Each change is confirmed by a brief on-screen message in English or Chinese, following the game language by default, so no settings menu is required.
 - The following items are never collected remotely:
   - items that have already been collected or are currently hidden;
   - quest items (item IDs beginning with `K_` or `I_`);
@@ -52,7 +52,7 @@ Gamepad chords are defined in `settings.json` by joining key names with `+`, for
 `settings.json` is created in the mod folder the first time a setting changes. Without PbzModConfig, the file can also be created or edited by hand while the game is not running:
 
 ```json
-{"equipGamepad":"","equipKey":"L","onePerPress":true,"pickupGamepad":"","pickupKey":"O","radiusM":50,"rangeGamepad":"","rangeKey":"P","showToast":true,"skipEquipment":true,"skipHidden":true}
+{"equipGamepad":"","equipKey":"L","onePerPress":true,"pickupGamepad":"","pickupKey":"O","radiusM":50,"rangeGamepad":"","rangeKey":"P","showToast":true,"skipEquipment":true,"skipHidden":true,"toastLanguage":"auto"}
 ```
 
 | Key | Description | Default |
@@ -66,6 +66,7 @@ Gamepad chords are defined in `settings.json` by joining key names with `+`, for
 | `rangeKey` / `rangeGamepad` | Keyboard key / gamepad binding that cycles the pickup range (gamepad chords supported). | `P` / `""` |
 | `equipKey` / `equipGamepad` | Keyboard key / gamepad binding that toggles "skip equipment" (gamepad chords supported). | `L` / `""` |
 | `showToast` | Show an on-screen message when a hotkey changes a setting. | `true` |
+| `toastLanguage` | Language of on-screen messages: `auto` (Chinese when the game language is Chinese, English otherwise), `en` or `zh-Hans`. | `auto` |
 
 Gamepad back paddles: Unreal Engine defines no dedicated key names for back paddles. If the game recognises a paddle, it can be bound directly. Otherwise, map the paddle to an unused gamepad button in Steam Input and bind that button instead.
 
@@ -76,6 +77,7 @@ All messages are written to `UE4SS.log` with the prefix `[PbzRemotePickup]`:
 - `skip <actor> ... : <reason>`: the item was skipped for the stated reason. If a material is reported as `equipment / unknown item <ID>`, please open an issue that includes the ID.
 - `PICKED` / `FAILED`: the result of a pickup attempt. A subsequent `LATE` line indicates that the pickup completed after a delay.
 - `toast: ...`: a hotkey changed a setting. If it is followed by `on-screen message unavailable`, the message could not be displayed, although the setting was still applied. After three consecutive failures, on-screen messages are disabled for the rest of the session.
+- `game culture: ...`: the game language detected for on-screen messages when `toastLanguage` is `auto`. If detection fails, messages are shown in English; set `toastLanguage` explicitly in that case.
 - `struct ...: id fields [...]`: diagnostic information about how item IDs are read from pickup data. Please include this line when reporting an issue.
 
 ## Known limitations

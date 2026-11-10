@@ -103,6 +103,7 @@ package.path = ModDir .. "\\Scripts\\?.lua;"
 ---------------------------------------------------------------- settings (settings.json; also shown in PbzModConfig when enabled)
 local SettingsPath = ModDir .. "\\settings.json"
 local DEFAULTS = { radiusM = 50, onePerPress = true, skipHidden = true, skipEquipment = true, showToast = true,
+                   toastLanguage = "auto",                        -- on-screen messages: "auto" (game language), "en", "zh-Hans"
                    rangeKey = "P", equipKey = "L",               -- keyboard hotkeys: cycle range / toggle skip equipment (Ctrl is taken by the game)
                    rangeGamepad = "", equipGamepad = "",          -- gamepad hotkeys, chords allowed (A+B), "" = unbound
                    pickupKey = "O",        -- keyboard / mouse binding, UE FKey name with optional Ctrl+/Alt+/Shift+
@@ -198,6 +199,9 @@ local function Sanitize(values)
     if type(values.skipHidden) == "boolean" then out.skipHidden = values.skipHidden end
     if type(values.skipEquipment) == "boolean" then out.skipEquipment = values.skipEquipment end
     if type(values.showToast) == "boolean" then out.showToast = values.showToast end
+    if values.toastLanguage == "auto" or values.toastLanguage == "en" or values.toastLanguage == "zh-Hans" then
+        out.toastLanguage = values.toastLanguage
+    end
     for _, k in ipairs(KEY_SLOTS) do
         local v = values[k]
         if type(v) == "string" and #v <= 96 and (v == "" or v:match("^[A-Za-z][A-Za-z0-9_+]*$")) then out[k] = v end
@@ -1004,6 +1008,36 @@ end
 
 local Input = { prev = {}, errors = 0, stopped = false }
 
+-- on-screen message texts; toastLanguage "auto" follows the game's current culture (zh* -> Chinese, else English)
+local MESSAGES = {
+    range        = { ["zh-Hans"] = "远程拾取范围：%d 米",               en = "Remote pickup range: %d m" },
+    equipSkipped = { ["zh-Hans"] = "远程拾取：跳过装备（开）",          en = "Remote pickup: skip equipment ON" },
+    equipAllowed = { ["zh-Hans"] = "远程拾取：也拾取装备（跳过装备 关）", en = "Remote pickup: skip equipment OFF (equipment is picked up)" },
+}
+local CultureLogged = nil
+local function GameCulture()
+    local culture = nil
+    pcall(function()
+        local lib = StaticFindObject("/Script/Engine.Default__KismetInternationalizationLibrary")
+        if Valid(lib) then culture = S(lib:GetCurrentCulture()) end
+    end)
+    if culture ~= CultureLogged then
+        CultureLogged = culture
+        log("game culture: " .. tostring(culture or "unknown (using English)"))
+    end
+    return culture
+end
+local function MessageLanguage()
+    local lang = Settings.values.toastLanguage
+    if lang ~= "auto" then return lang end
+    local culture = GameCulture()
+    return (culture and culture:lower():find("^zh")) and "zh-Hans" or "en"
+end
+local function Msg(key, ...)
+    local m = MESSAGES[key]
+    return string.format(m[MessageLanguage()] or m.en, ...)
+end
+
 local function CycleRange()
     local cur, nextR = Settings.values.radiusM, RANGE_STEPS[1]
     for _, r in ipairs(RANGE_STEPS) do if r > cur then nextR = r; break end end
@@ -1011,7 +1045,7 @@ local function CycleRange()
     for k, x in pairs(Settings.values) do v[k] = x end
     v.radiusM = nextR
     SetSettings(v)
-    ShowToast(string.format("远程拾取范围：%d 米", Settings.values.radiusM))
+    ShowToast(Msg("range", Settings.values.radiusM))
 end
 
 local function ToggleEquipment()
@@ -1019,7 +1053,7 @@ local function ToggleEquipment()
     for k, x in pairs(Settings.values) do v[k] = x end
     v.skipEquipment = not Settings.values.skipEquipment
     SetSettings(v)
-    ShowToast(Settings.values.skipEquipment and "远程拾取：跳过装备（开）" or "远程拾取：也拾取装备（跳过装备 关）")
+    ShowToast(Msg(Settings.values.skipEquipment and "equipSkipped" or "equipAllowed"))
 end
 
 local ACTIONS = {
@@ -1130,6 +1164,12 @@ local Provider = {
         { key = "showToast", type = "toggle", group = "pickup", defaultValue = DEFAULTS.showToast,
           label = L10n("屏幕提示", "On-screen messages"),
           description = L10n("用快捷键改设置时在屏幕上显示提示。", "Show a short message when a hotkey changes a setting.") },
+        { key = "toastLanguage", type = "choice", group = "pickup", defaultValue = DEFAULTS.toastLanguage,
+          options = { { value = "auto", label = L10n("跟随游戏语言", "Same as the game") },
+                      { value = "en", label = L10n("英文", "English") },
+                      { value = "zh-Hans", label = L10n("简体中文", "Simplified Chinese") } },
+          label = L10n("屏幕提示语言", "On-screen message language"),
+          description = L10n("游戏为中文时显示中文，其他语言显示英文。", "Chinese when the game is in Chinese, English otherwise.") },
     },
 }
 
