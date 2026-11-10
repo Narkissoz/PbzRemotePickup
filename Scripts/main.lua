@@ -100,7 +100,7 @@ local ModConfigEnabled = Ue4ssModEnabled("PbzModConfig")
 package.path = ModDir .. "\\Scripts\\?.lua;"
     .. (ModConfigEnabled and (ModsDir .. "\\PbzModConfig\\Scripts\\?.lua;") or "") .. package.path
 
----------------------------------------------------------------- settings (persisted, shown in ModConfig)
+---------------------------------------------------------------- settings (settings.json; also shown in PbzModConfig when enabled)
 local SettingsPath = ModDir .. "\\settings.json"
 local DEFAULTS = { radiusM = 50, onePerPress = true, skipHidden = true, skipEquipment = true, showToast = true,
                    rangeKey = "P", equipKey = "L",               -- keyboard hotkeys: cycle range / toggle skip equipment (Ctrl is taken by the game)
@@ -582,7 +582,7 @@ local function DenyReason(d)
     return nil
 end
 
----------------------------------------------------------------- P: diagnostic scan
+---------------------------------------------------------------- debug: diagnostic scan (F9, disabled by default)
 local function Scan()
     Report = io.open(ReportPath, "w")
     DumpedClasses = {}
@@ -666,7 +666,7 @@ local function Scan()
     if Report then log("report written to " .. ReportPath); Report:close(); Report = nil end
 end
 
----------------------------------------------------------------- I: monitor
+---------------------------------------------------------------- debug: pickup monitor (F10, disabled by default)
 local Monitor = { on = false, hooked = false, counts = {}, hookCount = 0 }
 
 local function DescribeParam(p)
@@ -841,7 +841,7 @@ local function ShowToast(msg)
     ExecuteWithDelay(TOAST_MS, function() ExecuteInGameThread(function() HideToast(seq) end) end)
 end
 
----------------------------------------------------------------- O: remote pickup (experimental)
+---------------------------------------------------------------- remote pickup
 local Busy = false
 local function Gone(a) return (not Valid(a)) or Destroyed(a) end
 
@@ -918,7 +918,7 @@ local function Pull()
     step(1)
 end
 
----------------------------------------------------------------- keys
+---------------------------------------------------------------- error guard and debug key bindings
 local function Guard(name, fn)
     return function()
         ExecuteInGameThread(function()
@@ -936,7 +936,7 @@ end
 -- RegisterKeyBind(Key.F9, Guard("scan", Scan))
 -- RegisterKeyBind(Key.F10, Guard("monitor", ToggleMonitor))
 
----------------------------------------------------------------- pickup key: polled through the PlayerController
+---------------------------------------------------------------- hotkeys: polled through the PlayerController
 -- UE4SS RegisterKeyBind only sees the keyboard and cannot be rebound, so the pickup key is read the same
 -- way other UE4SS mods for this game do: PlayerController:IsInputKeyDown(FKey) every few frames, with our own
 -- press-edge detection. This covers keyboard, mouse (incl. side buttons) and any Gamepad_* key UE reports.
