@@ -33,7 +33,7 @@
      enabled.txt
      Scripts/main.lua
    ```
-3. 启动游戏。`UE4SS.log` 中出现 `[PbzRemotePickup] loaded v0.10 ...` 即表示加载成功。
+3. 启动游戏。`UE4SS.log` 中出现 `[PbzRemotePickup] loaded v0.10.1 ...` 即表示加载成功。
 
 卸载时，删除 `Mods/PbzRemotePickup` 文件夹即可。
 

@@ -33,7 +33,7 @@ Developed and tested on Steam build 26367565. Game updates may affect compatibil
      enabled.txt
      Scripts/main.lua
    ```
-3. Launch the game. The line `[PbzRemotePickup] loaded v0.10 ...` in `UE4SS.log` confirms that the mod has loaded.
+3. Launch the game. The line `[PbzRemotePickup] loaded v0.10.1 ...` in `UE4SS.log` confirms that the mod has loaded.
 
 To uninstall, delete the `Mods/PbzRemotePickup` folder.
 

@@ -1,4 +1,4 @@
--- PbzRemotePickup v0.10
+-- PbzRemotePickup v0.10.1
 -- Settings (pickup key for keyboard/mouse and gamepad, pickup range, one-per-press, skip hidden, skip
 -- equipment) are saved to settings.json in this mod folder. If the separate "PbzModConfig" mod is installed,
 -- they also appear in the game's Settings > Mods page; its client files are loaded from that mod's own folder
@@ -6,6 +6,7 @@
 -- The pickup key is read by polling PlayerController input.
 -- v0.10: hotkeys that work without any settings UI - cycle the pickup range (25/50/100/150/200 m) and toggle
 -- "skip equipment" - each with a short on-screen message (UMG text added to the viewport; log only if that fails).
+-- v0.10.1: on-screen messages in English or Simplified Chinese (toastLanguage: auto follows the game language).
 --
 -- Debug keys, disabled by default (uncomment the RegisterKeyBind lines below "debug keys" to use them):
 -- F9 : diagnostic scan (read-only) -> scan_report.txt
@@ -594,7 +595,7 @@ local function Scan()
     if not Valid(pawn) then log("no player pawn"); if Report then Report:close(); Report = nil end; return end
     local ploc = Loc(pawn)
     local t0 = os.clock()
-    log(string.format("v0.10 scan  player X=%.0f Y=%.0f Z=%.0f", ploc.X, ploc.Y, ploc.Z))
+    log(string.format("v0.10.1 scan  player X=%.0f Y=%.0f Z=%.0f", ploc.X, ploc.Y, ploc.Z))
 
     -- player interact component
     local comp = PlayerInteractComp(pawn)
@@ -1122,8 +1123,8 @@ local function L10n(zh, en) return { ["zh-Hans"] = zh, en = en } end
 
 local Provider = {
     modId = "PbzRemotePickup",
-    modVersion = "0.10",
-    schemaVersion = 4,
+    modVersion = "0.10.1",
+    schemaVersion = 5,
     displayName = L10n("远程拾取", "Remote Pickup"),
     groups = { { id = "pickup", label = L10n("拾取", "Pickup"), order = 1 } },
     entries = {
@@ -1226,7 +1227,7 @@ do
 end
 
 if SettingsLoadNote then log(SettingsLoadNote) end
-log(string.format("loaded v0.10 (pickup key '%s', gamepad '%s'; range key '%s' / '%s', equipment key '%s' / '%s'; range %d m, one-per-press %s, skip equipment %s; ModConfig %s)",
+log(string.format("loaded v0.10.1 (pickup key '%s', gamepad '%s'; range key '%s' / '%s', equipment key '%s' / '%s'; range %d m, one-per-press %s, skip equipment %s; ModConfig %s)",
     Settings.values.pickupKey, Settings.values.pickupGamepad, Settings.values.rangeKey, Settings.values.rangeGamepad,
     Settings.values.equipKey, Settings.values.equipGamepad, Settings.values.radiusM,
     tostring(Settings.values.onePerPress), tostring(Settings.values.skipEquipment), ModConfigHandle and "registered" or "not registered"))
