@@ -1,12 +1,14 @@
--- PbzRemotePickup v0.10.1
+-- PbzRemotePickup v0.11
 -- Settings (pickup key for keyboard/mouse and gamepad, pickup range, one-per-press, skip hidden, skip
--- equipment) are saved to settings.json in this mod folder. If the separate "PbzModConfig" mod is installed,
--- they also appear in the game's Settings > Mods page; its client files are loaded from that mod's own folder
--- (Mods/PbzModConfig/Scripts) at runtime, nothing of it is bundled here. Without it, edit settings.json.
+-- equipment, hotkeys) are saved to settings.json in this mod folder and edited in the mod's own in-game
+-- settings panel (Scripts/SettingsUI.lua, F8 by default). If the separate "PbzModConfig" mod is installed,
+-- most of them also appear in the game's Settings > Mods page; its client files are loaded from that mod's
+-- own folder (Mods/PbzModConfig/Scripts) at runtime, nothing of it is bundled here.
 -- The pickup key is read by polling PlayerController input.
 -- v0.10: hotkeys that work without any settings UI - cycle the pickup range (25/50/100/150/200 m) and toggle
 -- "skip equipment" - each with a short on-screen message (UMG text added to the viewport; log only if that fails).
 -- v0.10.1: on-screen messages in English or Simplified Chinese (toastLanguage: auto follows the game language).
+-- v0.11: own settings panel for every setting, usable with keyboard / mouse and gamepad (menuKey / menuGamepad).
 --
 -- Debug keys, disabled by default (uncomment the RegisterKeyBind lines below "debug keys" to use them):
 -- F9 : diagnostic scan (read-only) -> scan_report.txt
@@ -107,13 +109,14 @@ local DEFAULTS = { radiusM = 50, onePerPress = true, skipHidden = true, skipEqui
                    toastLanguage = "auto",                        -- on-screen messages: "auto" (game language), "en", "zh-Hans"
                    rangeKey = "P", equipKey = "L",               -- keyboard hotkeys: cycle range / toggle skip equipment (Ctrl is taken by the game)
                    rangeGamepad = "", equipGamepad = "",          -- gamepad hotkeys, chords allowed (A+B), "" = unbound
+                   menuKey = "F8", menuGamepad = "",              -- open / close the settings panel (P / O / L are taken above)
                    pickupKey = "O",        -- keyboard / mouse binding, UE FKey name with optional Ctrl+/Alt+/Shift+
                    pickupGamepad = "" }    -- gamepad binding (any Gamepad_* key the game reports), "" = unbound
 local RADIUS_MIN, RADIUS_MAX, RADIUS_STEP = 5, 200, 5
 local RANGE_STEPS = { 25, 50, 100, 150, 200 }      -- cycled by the range hotkey
-local KEYBOARD_SLOTS = { "pickupKey", "rangeKey", "equipKey" }
-local GAMEPAD_SLOTS  = { "pickupGamepad", "rangeGamepad", "equipGamepad" }
-local KEY_SLOTS = { "pickupKey", "pickupGamepad", "rangeKey", "rangeGamepad", "equipKey", "equipGamepad" }
+local KEYBOARD_SLOTS = { "pickupKey", "rangeKey", "equipKey", "menuKey" }
+local GAMEPAD_SLOTS  = { "pickupGamepad", "rangeGamepad", "equipGamepad", "menuGamepad" }
+local KEY_SLOTS = { "pickupKey", "pickupGamepad", "rangeKey", "rangeGamepad", "equipKey", "equipGamepad", "menuKey", "menuGamepad" }
 local function GamepadOnly(binding)
     if binding == "" then return true end
     for part in (binding .. "+"):gmatch("(.-)%+") do
@@ -213,6 +216,7 @@ local function Sanitize(values)
     for _, k in ipairs(GAMEPAD_SLOTS) do        -- gamepad slots: every part of the chord must be a gamepad key
         if not GamepadOnly(out[k]) then out[k] = "" end
     end
+    if out.menuKey == "" and out.menuGamepad == "" then out.menuKey = DEFAULTS.menuKey end   -- the panel must stay reachable
     return out
 end
 
@@ -595,7 +599,7 @@ local function Scan()
     if not Valid(pawn) then log("no player pawn"); if Report then Report:close(); Report = nil end; return end
     local ploc = Loc(pawn)
     local t0 = os.clock()
-    log(string.format("v0.10.1 scan  player X=%.0f Y=%.0f Z=%.0f", ploc.X, ploc.Y, ploc.Z))
+    log(string.format("v0.11 scan  player X=%.0f Y=%.0f Z=%.0f", ploc.X, ploc.Y, ploc.Z))
 
     -- player interact component
     local comp = PlayerInteractComp(pawn)
@@ -1014,6 +1018,7 @@ local MESSAGES = {
     range        = { ["zh-Hans"] = "远程拾取范围：%d 米",               en = "Remote pickup range: %d m" },
     equipSkipped = { ["zh-Hans"] = "远程拾取：跳过装备（开）",          en = "Remote pickup: skip equipment ON" },
     equipAllowed = { ["zh-Hans"] = "远程拾取：也拾取装备（跳过装备 关）", en = "Remote pickup: skip equipment OFF (equipment is picked up)" },
+    panelFailed  = { ["zh-Hans"] = "远程拾取：设置界面打不开，原因见 UE4SS.log", en = "Remote pickup: the settings panel could not be opened, see UE4SS.log" },
 }
 local CultureLogged = nil
 local function GameCulture()
@@ -1028,8 +1033,8 @@ local function GameCulture()
     end
     return culture
 end
-local function MessageLanguage()
-    local lang = Settings.values.toastLanguage
+local function MessageLanguage(setting)
+    local lang = setting or Settings.values.toastLanguage
     if lang ~= "auto" then return lang end
     local culture = GameCulture()
     return (culture and culture:lower():find("^zh")) and "zh-Hans" or "en"
@@ -1057,7 +1062,20 @@ local function ToggleEquipment()
     ShowToast(Msg(Settings.values.skipEquipment and "equipSkipped" or "equipAllowed"))
 end
 
+-- the settings panel (Scripts/SettingsUI.lua), created at the end of this file; nil if it could not be loaded
+local Panel = nil
+local function OpenPanel()
+    local ok, err = false, "not loaded"
+    if Panel then ok, err = Panel.open(UEHelpers.GetPlayerController()) end
+    if not ok then
+        log("settings panel not opened: " .. tostring(err))
+        ShowToast(Msg("panelFailed"))
+    end
+end
+
 local ACTIONS = {
+    { slot = "menuKey", fn = OpenPanel, name = "panel" },
+    { slot = "menuGamepad", fn = OpenPanel, name = "panel" },
     { slot = "pickupKey", fn = function() return Pull() end, name = "pull" },
     { slot = "pickupGamepad", fn = function() return Pull() end, name = "pull" },
     { slot = "rangeKey", fn = CycleRange, name = "range" },
@@ -1068,7 +1086,11 @@ local ACTIONS = {
 
 local function PollOnce()
     local pc = UEHelpers.GetPlayerController()
-    if not Valid(pc) then Input.prev = {}; return end
+    if not Valid(pc) then
+        Input.prev = {}
+        if Panel and Panel.busy() then Panel.tick(pc) end     -- lets the panel notice that its world is gone
+        return
+    end
     local fired, best = {}, 0
     for _, a in ipairs(ACTIONS) do
         local binding = Settings.values[a.slot]
@@ -1079,6 +1101,14 @@ local function PollOnce()
             if n > best then best = n end
         end
         Input.prev[a.slot] = { binding = binding, down = n and true or false }
+    end
+    if Panel and Panel.busy() then
+        -- The panel owns the keys while it is open (and until they are released after it closed): nothing else
+        -- fires. Its own hotkey closes it, unless that key is being captured for a binding right now.
+        local toggle = false
+        for _, f in ipairs(fired) do if f.a.name == "panel" then toggle = true end end
+        if toggle and Panel.isOpen and not Panel.isCapturing() then Panel.close("hotkey") else Panel.tick(pc) end
+        return
     end
     if #fired == 0 then return end
     if InputBlocked(pc) then return end
@@ -1123,7 +1153,7 @@ local function L10n(zh, en) return { ["zh-Hans"] = zh, en = en } end
 
 local Provider = {
     modId = "PbzRemotePickup",
-    modVersion = "0.10.1",
+    modVersion = "0.11",
     schemaVersion = 5,
     displayName = L10n("远程拾取", "Remote Pickup"),
     groups = { { id = "pickup", label = L10n("拾取", "Pickup"), order = 1 } },
@@ -1160,8 +1190,7 @@ local Provider = {
         { key = "equipKey", type = "keybind", group = "pickup", defaultValue = DEFAULTS.equipKey,
           allowGamepad = false, allowMouse = true, allowModifiers = true, allowUnbound = true, conflictGroup = "remotepickup",
           label = L10n("开关“跳过装备”（键盘 / 鼠标）", "Toggle \"skip equipment\" (keyboard / mouse)"),
-          description = L10n("屏幕上会提示当前状态。手柄组合键请在 settings.json 里设置 rangeGamepad / equipGamepad。",
-                             "The new state is shown on screen. Gamepad chords go in settings.json (rangeGamepad / equipGamepad).") },
+          description = L10n("屏幕上会提示当前状态。", "The new state is shown on screen.") },
         { key = "showToast", type = "toggle", group = "pickup", defaultValue = DEFAULTS.showToast,
           label = L10n("屏幕提示", "On-screen messages"),
           description = L10n("用快捷键改设置时在屏幕上显示提示。", "Show a short message when a hotkey changes a setting.") },
@@ -1169,8 +1198,8 @@ local Provider = {
           options = { { value = "auto", label = L10n("跟随游戏语言", "Same as the game") },
                       { value = "en", label = L10n("英文", "English") },
                       { value = "zh-Hans", label = L10n("简体中文", "Simplified Chinese") } },
-          label = L10n("屏幕提示语言", "On-screen message language"),
-          description = L10n("游戏为中文时显示中文，其他语言显示英文。", "Chinese when the game is in Chinese, English otherwise.") },
+          label = L10n("屏幕提示和设置界面的语言", "Language of on-screen messages and the settings panel"),
+          description = L10n("跟随游戏语言时：游戏为中文显示中文，其他语言显示英文。", "Same as the game: Chinese when the game is in Chinese, English otherwise.") },
     },
 }
 
@@ -1222,12 +1251,61 @@ do
         local ok, h = pcall(Client.register, Provider)
         if ok then ModConfigHandle = h else log("ModConfig registration failed: " .. tostring(h)) end
     else
-        log("PbzModConfig " .. (ModConfigEnabled and "not installed" or "not enabled") .. ": settings only via settings.json")
+        log("PbzModConfig " .. (ModConfigEnabled and "not installed" or "not enabled")
+            .. ": no Settings > Mods page (the mod's own settings panel, hotkeys and settings.json still work)")
+    end
+end
+
+---------------------------------------------------------------- own settings panel (Scripts/SettingsUI.lua)
+-- The panel shows the entries above plus these, which the ModConfig page cannot edit (chords) or does not need.
+local PANEL_EXTRAS = {
+    { after = "rangeKey", key = "rangeGamepad", type = "keybind", allowGamepad = true,
+      label = L10n("切换拾取范围（手柄）", "Cycle pickup range (gamepad)"),
+      description = L10n("可以绑定单个手柄键，也可以绑定组合键，例如按住 LB 再按十字键上。", "A single gamepad button or a chord, for example hold LB and press D-Pad Up.") },
+    { after = "equipKey", key = "equipGamepad", type = "keybind", allowGamepad = true,
+      label = L10n("开关“跳过装备”（手柄）", "Toggle \"skip equipment\" (gamepad)"),
+      description = L10n("可以绑定单个手柄键，也可以绑定组合键。", "A single gamepad button or a chord.") },
+    { after = "toastLanguage", key = "menuKey", type = "keybind", needOne = "panel",
+      label = L10n("打开本设置界面（键盘 / 鼠标）", "Open this settings panel (keyboard / mouse)"),
+      description = L10n("在游戏中按这个键打开或关闭本界面。", "Press this key in game to open or close this panel.") },
+    { after = "menuKey", key = "menuGamepad", type = "keybind", allowGamepad = true, needOne = "panel",
+      label = L10n("打开本设置界面（手柄）", "Open this settings panel (gamepad)"),
+      description = L10n("建议绑定组合键（例如按住 LB 再按下左摇杆），单个键容易在战斗中误触。", "A chord is recommended (for example hold LB and click the left stick); a single button is easy to hit by accident in combat.") },
+}
+
+do
+    local okUI, UI = pcall(require, "SettingsUI")
+    if okUI then
+        local rows = UI.rowsFromEntries(Provider.entries, PANEL_EXTRAS)
+        rows[#rows + 1] = { kind = "action", confirm = true, label = L10n("全部恢复默认", "Reset everything to defaults"),
+            desc = L10n("把上面每一项都恢复成默认值，需要连按两次确认。关闭界面时才会保存。", "Puts every setting above back to its default; confirm twice. Saved when the panel closes."),
+            run = function(menu) menu.resetDefaults() end }
+        rows[#rows + 1] = { kind = "action", label = L10n("保存并关闭", "Save and close"),
+            desc = L10n("改动在关闭界面时生效并写入 settings.json。", "Changes take effect and are written to settings.json when the panel closes."),
+            run = function(menu) menu.close("close row") end }
+        Panel = UI.new({
+            rows = rows,
+            title = L10n("远程拾取 · 设置", "Remote Pickup - Settings"),
+            defaults = DEFAULTS,
+            load = function() return Settings.values end,
+            commit = function(values)
+                local saved, err = SetSettings(values)
+                log("settings saved from the panel: " .. FlatJson.encode(Settings.values) .. (saved and "" or (" (save failed: " .. tostring(err) .. ")")))
+            end,
+            keyDown = KeyDown,
+            getPC = function() return UEHelpers.GetPlayerController() end,
+            log = log,
+            lang = function(values) return MessageLanguage(values.toastLanguage) == "zh-Hans" and "zh" or "en" end,
+            mouse = true,
+        })
+    else
+        log("settings panel unavailable (Scripts/SettingsUI.lua): " .. tostring(UI))
     end
 end
 
 if SettingsLoadNote then log(SettingsLoadNote) end
-log(string.format("loaded v0.10.1 (pickup key '%s', gamepad '%s'; range key '%s' / '%s', equipment key '%s' / '%s'; range %d m, one-per-press %s, skip equipment %s; ModConfig %s)",
+log(string.format("loaded v0.11 (pickup key '%s', gamepad '%s'; range key '%s' / '%s', equipment key '%s' / '%s'; settings panel key '%s' / '%s'%s; range %d m, one-per-press %s, skip equipment %s; ModConfig %s)",
     Settings.values.pickupKey, Settings.values.pickupGamepad, Settings.values.rangeKey, Settings.values.rangeGamepad,
-    Settings.values.equipKey, Settings.values.equipGamepad, Settings.values.radiusM,
+    Settings.values.equipKey, Settings.values.equipGamepad, Settings.values.menuKey, Settings.values.menuGamepad,
+    Panel and "" or " (panel unavailable)", Settings.values.radiusM,
     tostring(Settings.values.onePerPress), tostring(Settings.values.skipEquipment), ModConfigHandle and "registered" or "not registered"))
